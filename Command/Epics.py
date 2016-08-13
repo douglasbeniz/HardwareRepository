@@ -4,9 +4,11 @@ import copy
 
 # LNLS
 #from . import saferef
-from saferef import *
+#from saferef import *
+import saferef
 #from . import Poller
-from Poller import *
+#from Poller import *
+import Poller
 #from .CommandContainer import CommandObject, ChannelObject
 from CommandContainer import CommandObject, ChannelObject
 
@@ -22,6 +24,7 @@ class EpicsCommand(CommandObject):
         
         self.pv_name = pv_name
         self.read_as_str = kwargs.get("read_as_str", False)
+        self.auto_monitor = kwargs.get("auto_monitor", True)
         self.pollers = {}
         self.__valueChangedCallbackRef = None
         self.__timeoutCallbackRef = None
@@ -39,10 +42,18 @@ class EpicsCommand(CommandObject):
             logging.getLogger('HWR').error("EpicsCommand: ftm only scalar arguments are supported.")
             return
 
-        self.pv = epics.PV(pv_name, auto_monitor = True)
-        self.pv_connected = self.pv.connect()
-        self.valueChanged(self.pv.get(as_string = self.read_as_str))
         logging.getLogger('HWR').debug("EpicsCommand: creating pv %s: read_as_str = %s", self.pv_name, self.read_as_str)
+
+        # LNLS
+        #self.pv = epics.PV(pv_name, auto_monitor = True)
+        self.pv = epics.PV(pv_name, auto_monitor = self.auto_monitor)
+        self.pv_connected = self.pv.connect()
+
+        # LNLS
+        if (self.pv_connected):
+            self.valueChanged(self.pv.get(as_string = self.read_as_str))
+        else:
+            logging.getLogger('HWR').error("EpicsCommand: Error connecting to pv %s.", self.pv_name)
 
        
     def __call__(self, *args, **kwargs):
@@ -74,7 +85,7 @@ class EpicsCommand(CommandObject):
                 try:
                     # LNLS
                     #self.pv.put(args[0], wait = True)
-                    self.pv.put(args[0], wait = False)
+                    self.pv.put(args[0], wait = args[1])
                 except:
                     logging.getLogger('HWR').error("%s: an error occured when calling Epics command %s", str(self.name()), self.pv_name)
                 else:
@@ -85,17 +96,20 @@ class EpicsCommand(CommandObject):
 
     def valueChanged(self, value):
         try:
-            callback = self.__valueChangedCallbackRef()
+            # LNLS
+            #callback = self.__valueChangedCallbackRef()
+            callback = self.__valueChangedCallbackRef(value)
         except:
             pass
         else:
             if callback is not None:
                 callback(value)
 
-
     def onPollingError(self, exception, poller_id):
+        print("onPollingError")
         # try to reconnect the pv
         self.pv.connect()
+
         poller = Poller.get_poller(poller_id)
         if poller is not None:
             try:
@@ -103,33 +117,29 @@ class EpicsCommand(CommandObject):
             except:
                 pass
 
-
     def getPvValue(self):
         # wrapper function to pv.get() in order to supply additional named parameter
         return self.pv.get(as_string = self.read_as_str)
-        
 
     def poll(self, pollingTime=500, argumentsList=(), valueChangedCallback=None, timeoutCallback=None, direct=True, compare=True):
-        self.__valueChangedCallbackRef = saferef.safe_ref(valueChangedCallback)
-        
+        # LNLS
+        #self.__valueChangedCallbackRef = saferef.safe_ref(valueChangedCallback)
+        self.__valueChangedCallbackRef = valueChangedCallback
+
         # store the call to get as a function object
         # poll_cmd = self.pv.get
         poll_cmd = self.getPvValue
 
         Poller.poll(poll_cmd, copy.deepcopy(argumentsList), pollingTime, self.valueChanged, self.onPollingError, compare)
-                
 
     def stopPolling(self):
         pass
 
-
     def abort(self):
         pass
-        
 
     def isConnected(self):
         return self.pv_connected
-
 
 class EpicsChannel(ChannelObject):
     """Emulation of a 'Epics channel' = an Epics command + polling"""
@@ -144,18 +154,16 @@ class EpicsChannel(ChannelObject):
             self.polling = None
         else:
             self.command.poll(self.polling, self.command.arglist, self.valueChanged)
-                
 
     def valueChanged(self, value):
         self.emit("update", value)
-
 
     def getValue(self):
         return self.command()
     
     # LNLS
-    def setValue(self, value):
-        self.command(value)
+    def setValue(self, value, wait=False):
+        self.command(value, wait)
  
     def isConnected(self):
         return self.command.isConnected()

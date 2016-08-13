@@ -43,11 +43,17 @@ def poll(polled_call, polled_call_args=(), polling_period=1000, value_changed_ca
 
 class _Poller:
     def __init__(self, polled_call, polled_call_args=(), polling_period=1000, value_changed_callback=None, error_callback=None, compare=True):
-        self.polled_call_ref = saferef.safe_ref(polled_call)
+        # LNLS
+        #self.polled_call_ref = saferef.safe_ref(polled_call)
+        self.polled_call_ref = polled_call
         self.args = polled_call_args
         self.polling_period = polling_period
-        self.value_changed_callback_ref = saferef.safe_ref(value_changed_callback)
-        self.error_callback_ref = saferef.safe_ref(error_callback)
+        # LNLS
+        #self.value_changed_callback_ref = saferef.safe_ref(value_changed_callback)
+        self.value_changed_callback_ref = value_changed_callback
+        # LNLS
+        #self.error_callback_ref = saferef.safe_ref(error_callback)
+        self.error_callback_ref = error_callback
         self.compare = compare
         self.old_res = NotInitializedValue
         self.queue = _threading.Queue() #Queue.Queue()
@@ -55,11 +61,9 @@ class _Poller:
         self.stop_event = _threading.Event()
         self.async_watcher = gevent.get_hub().loop.async()
 
-
     def start_delayed(self, delay):
         self.delay = delay
         _threading.start_new_thread(self.run, ()) #self.start()
-
 
     def stop(self):
         self.stop_event.set()
@@ -105,7 +109,9 @@ class _Poller:
                 if cb is not None:
                     gevent.spawn(cb, res.original_exception, res.poller_id)
             else:
-                cb = self.value_changed_callback_ref()
+                # LNLS
+                #cb = self.value_changed_callback_ref()
+                cb = self.value_changed_callback_ref(res)
                 if cb is not None:
                     gevent.spawn(cb, res)
 
@@ -114,6 +120,7 @@ class _Poller:
         sleep = gevent.monkey._get_original("time", ["sleep"])[0]
 
         self.async_watcher.start(self.new_event)
+
         err_callback_args = None 
         error_cb = None
         first_run = True
@@ -125,15 +132,18 @@ class _Poller:
 
             if self.stop_event.is_set():
                 break
-                
-            polled_call = self.polled_call_ref()
+
+            # LNLS
+            #polled_call = self.polled_call_ref()
+            polled_call = self.polled_call_ref
+
             if polled_call is None:
                 break
 
             try:
                 res = polled_call(*self.args)
             except Exception as e:
-                if self.stop_event.is_set():
+                if self.is_stopped():
                   break
                 error_cb = self.error_callback_ref()
                 if error_cb is not None:
@@ -159,7 +169,6 @@ class _Poller:
                           new_value = not all(comparison)
                   else:
                       new_value = res != self.old_res
-
                 if new_value:
                   self.old_res = res
                   self.queue.put(res)

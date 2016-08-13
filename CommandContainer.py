@@ -290,14 +290,16 @@ class CommandContainer:
         else:
               logging.getLogger().exception('Channel is None')
 
-         
-    def setValue(self, channelName, value):
-        self.__channels[channelName].setValue(value)
+    # LNLS
+    def setValue(self, channelName, value, wait=False):
+        self.__channels[channelName].setValue(value, wait)
 
 
     def getValue(self, channelName):
         return self.__channels[channelName].getValue()
 
+    def isConnected(self, channelName):
+        return self.__channels[channelName].isConnected()
 
     def getChannels(self):
         for chan in self.__channels.values():
