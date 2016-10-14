@@ -333,11 +333,11 @@ class SardanaChannel(ChannelObject, SardanaObject):
                   self.attribute.changePollingPeriod(self.polling)
              
              self.attribute.addListener(self.objectListener)
-                  
+
     def getValue(self):
         return self._readValue()
 
-    def setValue(self, newValue):
+    def setValue(self, newValue, wait=False):
         self._writeValue(newValue)
  
     def _writeValue(self, newValue):

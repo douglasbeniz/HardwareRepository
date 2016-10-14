@@ -195,7 +195,7 @@ class ExporterChannel(ChannelObject):
         value = self.__exporter.readProperty(self.attributeName)
         return value
 
-    def setValue(self, newValue):
+    def setValue(self, newValue, wait=False):
         self.__exporter.writeProperty(self.attributeName, newValue)
  
     def isConnected(self):

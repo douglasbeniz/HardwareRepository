@@ -214,7 +214,7 @@ class PoolChannel(ChannelObject):
         return self.value
 
     
-    def setValue(self, newValue):
+    def setValue(self, newValue, wait=False):
         #newval = PyTango.AttributeValue()
         #newval.value = newValue
         #self.device.write_attribute(self.attributeName, newval)

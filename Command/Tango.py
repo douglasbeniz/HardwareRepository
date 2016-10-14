@@ -248,7 +248,7 @@ class TangoChannel(ChannelObject):
         return value
 
     
-    def setValue(self, newValue):
+    def setValue(self, newValue, wait=False):
         self.device.write_attribute(self.attributeName, newValue)
         #attr = PyTango.AttributeProxy(self.deviceName + "/" + self.attributeName)
         #a = attr.read()
