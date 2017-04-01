@@ -1,6 +1,7 @@
 import logging
 import weakref
 import copy
+import gevent
 
 # LNLS
 #from . import saferef
@@ -74,7 +75,19 @@ class EpicsCommand(CommandObject):
             if len(args) == 0:
                 # no arguments available -> get the pv's current value
                 try:
-                    ret = self.pv.get(as_string = self.read_as_str)
+                    ret = self.pv.get(as_string = self.read_as_str, timeout=0.2)
+                    # LNLS
+                    # If a try to get info return a None object, retry once more...
+                    if (ret is None):
+                        ret = self.reconnect()
+                except TypeError:
+                    # LNLS
+                    # When a cached info is lost internally Epics return a TypeError: NoneType...
+                    ret = self.reconnect()
+
+                    if (ret is not None):
+                        self.emit('commandReplyArrived', (ret, str(self.name())))
+                        return ret
                 except:
                     logging.getLogger('HWR').error("%s: an error occured when calling Epics command %s", str(self.name()), self.pv_name)
                 else:
@@ -141,11 +154,25 @@ class EpicsCommand(CommandObject):
     def isConnected(self):
         return self.pv_connected
 
+    # LNLS
+    def reconnect(self):
+        # Clear Epics cache
+        epics.ca._cache.clear()
+        #epics.ca._put_done.clear()
+
+        # Reconnect PV
+        self.pv = epics.PV(self.pv_name, auto_monitor = self.auto_monitor)
+        self.pv_connected = self.pv.connect()
+
+        # Return the result of get()
+        return self.pv.get(as_string = self.read_as_str, timeout=0.2)
+
+
 class EpicsChannel(ChannelObject):
     """Emulation of a 'Epics channel' = an Epics command + polling"""
     def __init__(self, name, command, username = None, polling=None, args=None, **kwargs):
         ChannelObject.__init__(self, name, username, **kwargs)
- 
+
         self.command = EpicsCommand(name+"_internalCmd", command, username, args, **kwargs)
         
         try:
@@ -160,10 +187,13 @@ class EpicsChannel(ChannelObject):
 
     def getValue(self):
         return self.command()
-    
+
     # LNLS
     def setValue(self, value, wait=False):
         self.command(value, wait)
  
     def isConnected(self):
         return self.command.isConnected()
+
+    def reconnect(self):
+        self.command.reconnect()

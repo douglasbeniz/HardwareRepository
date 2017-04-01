@@ -292,14 +292,29 @@ class CommandContainer:
 
     # LNLS
     def setValue(self, channelName, value, wait=False):
-        self.__channels[channelName].setValue(value, wait)
+        try:
+            self.__channels[channelName].setValue(value, wait)
+        except:
+            logging.getLogger().exception('Error when setting velue to EPICS channel: %s', channelName)
 
 
     def getValue(self, channelName):
         return self.__channels[channelName].getValue()
 
+
+    # LNLS
+    def reconnect(self, channelName):
+        try:
+            from Command.Epics import EpicsChannel
+            if (type(self.__channels[channelName]) == EpicsChannel):
+                self.__channels[channelName].reconnect()
+        except:
+            logging.getLogger().exception('Cannot support reconnect for EPICS channel: %s', channelName)
+
+
     def isConnected(self, channelName):
         return self.__channels[channelName].isConnected()
+
 
     def getChannels(self):
         for chan in self.__channels.values():

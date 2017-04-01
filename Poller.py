@@ -156,23 +156,22 @@ class _Poller:
                 break
  
             if self.compare and res == self.old_res:
-                # do nothing: previous value is the same as "new" value
                 pass
             else:
                 new_value = True
                 if self.compare:
-                  if isinstance(res, numpy.ndarray):
-                      comparison = res == self.old_res
-                      if type(comparison) == bool:
-                          new_value = not comparison
-                      else:
-                          new_value = not all(comparison)
-                  else:
-                      new_value = res != self.old_res
+                    if isinstance(res, numpy.ndarray):
+                        comparison = res == self.old_res
+                        if type(comparison) == bool:
+                            new_value = not comparison
+                        else:
+                            new_value = not all(comparison)
+                    else:
+                        new_value = res != self.old_res
                 if new_value:
-                  self.old_res = res
-                  self.queue.put(res)
-                  self.async_watcher.send()
+                    self.old_res = res
+                    self.queue.put(res)
+                    self.async_watcher.send()
 
             sleep(self.polling_period / 1000.0)
 

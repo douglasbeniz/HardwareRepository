@@ -269,7 +269,7 @@ class __HardwareRepositoryClient:
             self.server.send_msg_cmd_with_return('xml_multiwrite("%s", "%s")' % (name, str(updatesList)))
         else:
             logging.getLogger('HWR').error('Cannot update Hardware Object %s : not connected to server', name)
-                  
+
 
     def rewrite_xml(self, name, xml):
         #TODO: rewrite without HWR server
